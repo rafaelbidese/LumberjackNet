@@ -1,16 +1,17 @@
-import json, os
+from torch.utils.data import Dataset, DataLoader
+from collections import namedtuple
+from sklearn.metrics import r2_score
+from time import strftime
+from tqdm import tqdm
+import json, os, csv
 import librosa
 import librosa.display
 import numpy as np
 import matplotlib.pyplot as plt
-from torch.utils.data import Dataset, DataLoader
-from collections import namedtuple
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-from sklearn.metrics import r2_score
-import csv
 
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
@@ -25,7 +26,7 @@ def json2obj(data):
     return json.loads(data, object_hook=_json_object_hook)
 
 class AudioDataset(Dataset):
-    def __init__(self, dataset, is_train=True, n_mfcc=40, n_fft=1024, hop_length=512):
+    def __init__(self, is_train=True, n_mfcc=40, n_fft=1024, hop_length=512):
         path = 'train_split.json' if is_train else 'val_split.json'
         with open(path, 'r') as json_file:
             json_data = json_file.read()
@@ -99,26 +100,12 @@ class AudioNet(nn.Module):
         x = self.fc3(x)                      # -> n, 1
         return x
 
-def main(n_epochs, n_mfcc,n_fft, hop_length, batch_size):
-    dataset_train = AudioDataset('train', n_mfcc=n_mfcc,n_fft=n_fft, hop_length=hop_length)
-    dataset_test = AudioDataset('test', n_mfcc=n_mfcc,n_fft=n_fft, hop_length=hop_length)
-    dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=0)
-    dataloader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=True, num_workers=0)
-    
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-    model = AudioNet().to(device)
-    criterion = nn.MSELoss()
-    optimizer = torch.optim.RMSprop(model.parameters(), lr=0.00001, momentum=0.9)
-    
-    # show_sample(model, device, dataloader_train)
+def train(model, device,criterion,optimizer,n_epochs,dataloader_train, dataloader_test):
 
-    accloss = 0
-    all_pred = np.zeros([])
-    all_dbhs = np.zeros([])
     all_losses = []
     best_model_r2 = 0;
     mse = 0
-    for epoch in range(n_epochs):
+    for epoch in tqdm(range(n_epochs), desc="TRAIN"):
         for i, (dbhs, files, mfccs) in enumerate(dataloader_train):
             # forward pass and loss
             dbhs = dbhs.view(-1,1).float()
@@ -132,6 +119,9 @@ def main(n_epochs, n_mfcc,n_fft, hop_length, batch_size):
             optimizer.step()
             optimizer.zero_grad()
 
+        accloss = 0
+        all_pred = np.zeros([])
+        all_dbhs = np.zeros([])
         ## VALIDATION PER EPOCH
         with torch.no_grad():
             for i, (dbhs, files, mfccs) in enumerate(dataloader_test):
@@ -142,7 +132,7 @@ def main(n_epochs, n_mfcc,n_fft, hop_length, batch_size):
                 loss = criterion(pred, dbhs)
                 accloss += loss
                 all_dbhs = np.append(all_dbhs, dbhs.cpu().numpy()[:,0])
-                all_pred = np.append(all_pred, pred.cpu().numpy()[:,0])
+                all_pred = np.append(all_pred,  pred.cpu().numpy()[:,0])
 
         mse = accloss.sum() / len(dataloader_test)
         r2score = r2_score(all_dbhs[1:], all_pred[1:])
@@ -154,20 +144,73 @@ def main(n_epochs, n_mfcc,n_fft, hop_length, batch_size):
             torch.save(model.state_dict(), './model/checkpoint.pth')
             best_model_r2 = r2score
 
+        time = strftime("%Y-%m-%d %H:%M:%S")
         if (epoch+1)%1 == 0:
-            print(f'[EPOCH] epoch:{epoch+1} mse = {mse:.4f} r2score = {r2score:.4f}')
+            print(f'{time} [EPOCH {epoch+1}] mse = {mse:.4f} r2score = {r2score:.4f}')
 
     os.makedirs('logs', exist_ok=True)
-    with open('./logs/log.txt', 'w') as log:
+    with open('./logs/train_loss_log.txt', 'w') as log:
         wr = csv.writer(log)
-        wr.writerow(all_dbhs)
-        wr.writerow(all_pred)
-        wr.writerow(all_losses)
+        wr.writerows(zip(all_losses))
+
+    plt.figure()
+    plt.plot(all_losses, 'bo')
+    plt.savefig('./logs/tain_loss_log.png')
+
+def evaluate_model(model,dataloader_test,device,criterion):
+    accloss = 0
+    all_pred = np.zeros([])
+    all_dbhs = np.zeros([])
+    mse = 0
+    with torch.no_grad():
+        for i in tqdm(range(len(dataloader_test)), desc="EVAL"):
+            dbhs, files, mfccs = next(iter(dataloader_test))
+            dbhs = dbhs.view(-1,1).float()
+            dbhs = dbhs.to(device)
+            mfccs = mfccs.to(device)
+            pred = model(mfccs)
+            loss = criterion(pred, dbhs)
+            accloss += loss
+            all_dbhs = np.append(all_dbhs, dbhs.cpu().numpy()[:,0])
+            all_pred = np.append(all_pred, pred.cpu().numpy()[:,0])
+
+        mse = accloss.sum() / len(dataloader_test)
+        r2score = r2_score(all_dbhs[1:], all_pred[1:])
+        print(f"Best model evaluation r2score: {r2score:.4f}")
+
+    os.makedirs('logs', exist_ok=True)
+    with open('./logs/eval_log.txt', 'w') as log:
+        gt_pred = [all_dbhs[1:], all_pred[1:]]
+        wr = csv.writer(log)
+        wr.writerows(zip(*gt_pred))
+
     x = np.linspace(1,20,10)
     plt.figure()
     plt.plot(all_dbhs[1:], all_pred[1:], 'bo')
     plt.plot(x,x)
-    plt.savefig('./logs/log.png')
+    plt.savefig('./logs/best_model_pred_log.png')
+
+def main(training,n_epochs, n_mfcc,n_fft, hop_length, batch_size,lr=0.00001,momentum=0.9):
+    dataset_train = AudioDataset(is_train=True, n_mfcc=n_mfcc,n_fft=n_fft, hop_length=hop_length)
+    dataset_test = AudioDataset(is_train=False, n_mfcc=n_mfcc,n_fft=n_fft, hop_length=hop_length)
+    dataloader_train = DataLoader(dataset_train, batch_size=batch_size, shuffle=True, num_workers=0)
+    dataloader_test = DataLoader(dataset_test, batch_size=batch_size, shuffle=True, num_workers=0)
+    
+    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    model = AudioNet().to(device)
+    criterion = nn.MSELoss()
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=lr, momentum=momentum)
+    
+    # show_sample(model, device, dataloader_train)
+    if(training):
+        model.train()
+        train(model, device,criterion,optimizer,n_epochs,dataloader_train, dataloader_test)
+    
+    # EVALUATE WITH BEST MODEL
+    model.load_state_dict(torch.load('./model/checkpoint.pth'))
+    model.eval()
+    evaluate_model(model,dataloader_test,device,criterion)
+    
 
 if __name__ == '__main__':
-    main(n_epochs=3,n_mfcc=40, n_fft=1024, hop_length=512, batch_size=1)
+    main(training=True,n_epochs=20,n_mfcc=40, n_fft=1024, hop_length=512, batch_size=16,lr=0.00001,momentum=0.9)

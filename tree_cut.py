@@ -19,10 +19,10 @@ torch.backends.cudnn.enabled=False
 torch.backends.cudnn.deterministic=True
 
 def _json_object_hook(d):
-     return namedtuple('tree', d.keys())(*d.values())
+    return namedtuple('tree', d.keys())(*d.values())
 
 def json2obj(data):
-     return json.loads(data, object_hook=_json_object_hook)
+    return json.loads(data, object_hook=_json_object_hook)
 
 class AudioDataset(Dataset):
     def __init__(self, dataset, is_train=True, n_mfcc=40, n_fft=1024, hop_length=512):
@@ -146,26 +146,28 @@ def main(n_epochs, n_mfcc,n_fft, hop_length, batch_size):
 
         mse = accloss.sum() / len(dataloader_test)
         r2score = r2_score(all_dbhs[1:], all_pred[1:])
-        all_losses.append(mse)
+        # all_losses.append(mse.cpu().numpy())
+        all_losses.append(r2score)
 
         if (r2score > best_model_r2):
             os.makedirs('model', exist_ok=True)
             torch.save(model.state_dict(), './model/checkpoint.pth')
-            best_model_r2 = mse
-            print(best_model_r2)
+            best_model_r2 = r2score
 
         if (epoch+1)%1 == 0:
             print(f'[EPOCH] epoch:{epoch+1} mse = {mse:.4f} r2score = {r2score:.4f}')
 
     os.makedirs('logs', exist_ok=True)
     with open('./logs/log.txt', 'w') as log:
-        wr = csv.writer(log,quoting=csv.QUOTE_ALL)
-        wr.writerow(all_dbhs, all_pred, all_losses)
+        wr = csv.writer(log)
+        wr.writerow(all_dbhs)
+        wr.writerow(all_pred)
+        wr.writerow(all_losses)
     x = np.linspace(1,20,10)
     plt.figure()
     plt.plot(all_dbhs[1:], all_pred[1:], 'bo')
     plt.plot(x,x)
-    plt.savefig('test.png')
+    plt.savefig('./logs/log.png')
 
 if __name__ == '__main__':
-    main(n_epochs=1,n_mfcc=40, n_fft=1024, hop_length=512, batch_size=1)
+    main(n_epochs=3,n_mfcc=40, n_fft=1024, hop_length=512, batch_size=1)

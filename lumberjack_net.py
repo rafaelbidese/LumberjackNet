@@ -228,7 +228,7 @@ def main(training,n_epochs, n_mfcc,n_fft, hop_length, batch_size,lr=0.00001,mome
 
 if __name__ == '__main__':
     main(training=True,
-        n_epochs=1,
+        n_epochs=300,
         n_mfcc=40, 
         n_fft=1024, 
         hop_length=512, 

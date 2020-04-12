@@ -12,6 +12,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
+import argparse
 
 torch.manual_seed(0)
 torch.cuda.manual_seed(0)
@@ -210,12 +211,8 @@ def main(training,n_epochs, n_mfcc,n_fft, hop_length, batch_size,lr=0.00001,mome
     criterion = nn.MSELoss()
     optimizer = torch.optim.RMSprop(model.parameters(), lr=lr, momentum=momentum)
     
-    os.makedirs(f'{exp}', exist_ok=True)
-    os.makedirs(f'{exp}/logs', exist_ok=True)
-    os.makedirs(f'{exp}/model', exist_ok=True)
-
-
     # show_sample(model, device, dataloader_train)
+
     if(training):
         model.train()
         train(model, device,criterion,optimizer,n_epochs,dataloader_train, dataloader_test,exp)
@@ -227,12 +224,30 @@ def main(training,n_epochs, n_mfcc,n_fft, hop_length, batch_size,lr=0.00001,mome
     
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--n_epochs", type=int, default=100, help="number of epochs of training")
+    parser.add_argument("--batch_size", type=int, default=16, help="size of the batches")
+    parser.add_argument("--lr", type=float, default=0.00001, help="rmsprop: learning rate")
+    parser.add_argument("--momentum", type=float, default=0.9, help="rmsprop: momentum of gradient")
+    parser.add_argument("--n_mfcc", type=int, default=40, help="number of coefficients")
+    parser.add_argument("--n_fft", type=int, default=1024, help="size of the fft")
+    parser.add_argument("--hop_length", type=int, default=512, help="window hop for mfcc")
+    parser.add_argument("--exp", type=str, default='exp00', help="experiment name")
+    opt = parser.parse_args()
+    print(opt)
+
+    os.makedirs(f'{opt.exp}', exist_ok=True)
+    os.makedirs(f'{opt.exp}/logs', exist_ok=True)
+    os.makedirs(f'{opt.exp}/model', exist_ok=True)
+    with open(f'{opt.exp}/config.txt', 'w') as cfg:
+        cfg.write(str(opt))
+
     main(training=True,
-        n_epochs=300,
-        n_mfcc=40, 
-        n_fft=1024, 
-        hop_length=512, 
-        batch_size=16,
-        lr=0.00001,
-        momentum=0.9,
-        exp='exp01')
+        n_epochs=opt.n_epochs,
+        n_mfcc=opt.n_mfcc, 
+        n_fft=opt.n_fft, 
+        hop_length=opt.hop_length, 
+        batch_size=opt.batch_size,
+        lr=opt.lr,
+        momentum=opt.momentum,
+        exp=opt.exp)

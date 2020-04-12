@@ -25,14 +25,14 @@ def getDataset(json_path, split):
     return [train, val]
 
 def main(json_path,split):
-  datasets = getDataset(json_path,split)
-  outputs = ['train_split.json', 'val_split.json']
-  for output, dataset in zip(outputs, datasets):
-    with open(output, 'w') as json_file:
-      json.dump([obj._asdict() for obj in dataset],json_file)
+    datasets = getDataset(json_path,split)
+    outputs = ['train_split.json', 'val_split.json']
+    for output, dataset in zip(outputs, datasets):
+        with open(output, 'w') as json_file:
+            json.dump([obj._asdict() for obj in dataset],json_file)
 
 if __name__ == '__main__':
-  json_path = r'data/sounds_DBH_inches.json'
-  split = 0.3
-  main(json_path,split)
-  print("Dataset splits successfully created")
+    json_path = r'data/sounds_DBH_inches.json'
+    split = 0.3
+    main(json_path,split)
+    print("Dataset splits successfully created")

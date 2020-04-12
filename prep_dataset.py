@@ -6,10 +6,10 @@ random.seed(0)
 
 
 def _json_object_hook(d):
-     return namedtuple('tree', d.keys())(*d.values())
+    return namedtuple('tree', d.keys())(*d.values())
 
 def json2obj(data):
-     return json.loads(data, object_hook=_json_object_hook)
+    return json.loads(data, object_hook=_json_object_hook)
 
 def _obj_to_dict(obj):
     return obj._asdict()
@@ -32,7 +32,7 @@ def main(json_path,split):
       json.dump([obj._asdict() for obj in dataset],json_file)
 
 if __name__ == '__main__':
-  json_path = r'sounds_DBH_inches.json'
+  json_path = r'data/sounds_DBH_inches.json'
   split = 0.3
   main(json_path,split)
   print("Dataset splits successfully created")

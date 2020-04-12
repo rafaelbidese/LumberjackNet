@@ -102,7 +102,8 @@ class AudioNet(nn.Module):
 
 def train(model, device,criterion,optimizer,n_epochs,dataloader_train, dataloader_test):
 
-    all_losses = []
+    all_mse = []
+    all_r2 = []
     best_model_r2 = 0;
     mse = 0
     for epoch in tqdm(range(n_epochs), desc="TRAIN"):
@@ -137,7 +138,8 @@ def train(model, device,criterion,optimizer,n_epochs,dataloader_train, dataloade
         mse = accloss.sum() / len(dataloader_test)
         r2score = r2_score(all_dbhs[1:], all_pred[1:])
         # all_losses.append(mse.cpu().numpy())
-        all_losses.append(r2score)
+        all_r2.append(r2score)
+        all_mse.append(mse)
 
         if (r2score > best_model_r2):
             os.makedirs('model', exist_ok=True)
@@ -146,16 +148,26 @@ def train(model, device,criterion,optimizer,n_epochs,dataloader_train, dataloade
 
         time = strftime("%Y-%m-%d %H:%M:%S")
         if (epoch+1)%1 == 0:
-            print(f'{time} [EPOCH {epoch+1}] mse = {mse:.4f} r2score = {r2score:.4f}')
+            print(f'\n{time} [EPOCH {epoch+1}] mse = {mse:.4f} r2score = {r2score:.4f}')
 
     os.makedirs('logs', exist_ok=True)
-    with open('./logs/train_loss_log.txt', 'w') as log:
+    # LOG R2 SCORES
+    with open('./logs/train_r2_loss_log.txt', 'w') as log:
         wr = csv.writer(log)
-        wr.writerows(zip(all_losses))
-
+        wr.writerows(zip(all_r2))
     plt.figure()
-    plt.plot(all_losses, 'bo')
-    plt.savefig('./logs/tain_loss_log.png')
+    plt.plot(all_r2, 'bo')
+    plt.title("TRAIN R2 LOSS")
+    plt.savefig('./logs/train_r2_loss_log.png')
+
+    # LOG MSE SCORES
+    with open('./logs/train_mse_loss_log.txt', 'w') as log:
+        wr = csv.writer(log)
+        wr.writerows(zip(all_mse))
+    plt.figure()
+    plt.plot(all_mse, 'bo')
+    plt.title("TRAIN MSE LOSS")
+    plt.savefig('./logs/train_mse_loss_log.png')
 
 def evaluate_model(model,dataloader_test,device,criterion):
     accloss = 0
@@ -176,7 +188,7 @@ def evaluate_model(model,dataloader_test,device,criterion):
 
         mse = accloss.sum() / len(dataloader_test)
         r2score = r2_score(all_dbhs[1:], all_pred[1:])
-        print(f"Best model evaluation r2score: {r2score:.4f}")
+        print(f"Best model evaluation scores R2: {r2score:.4f} MSE: {mse:.4f}")
 
     os.makedirs('logs', exist_ok=True)
     with open('./logs/eval_log.txt', 'w') as log:
@@ -213,4 +225,4 @@ def main(training,n_epochs, n_mfcc,n_fft, hop_length, batch_size,lr=0.00001,mome
     
 
 if __name__ == '__main__':
-    main(training=True,n_epochs=20,n_mfcc=40, n_fft=1024, hop_length=512, batch_size=16,lr=0.00001,momentum=0.9)
+    main(training=True,n_epochs=100,n_mfcc=40, n_fft=1024, hop_length=512, batch_size=16,lr=0.00001,momentum=0.9)

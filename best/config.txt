@@ -1,0 +1,2 @@
+Namespace(batch_size=16, chan1=8, exp='exp1', hop_length=512, kernel=2, lr=1e-05, momentum=0.1, n_epochs=600, n_fft=512, n_mfcc=30, weight_decay=0.1)
+[Validation] r2score: 0.52 MSE: 4.6754

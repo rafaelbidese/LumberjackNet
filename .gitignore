@@ -3,3 +3,4 @@ train_split.json
 val_split.json
 exp*
 .vscode
+__pycache__

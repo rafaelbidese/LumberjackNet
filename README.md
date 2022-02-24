@@ -16,11 +16,11 @@ There is some housekeeping necessary to make the data processing easier in train
 
 You should now see the `train_split.json` and `test_split.json` files in the main folder.
 
-To start training your network you can must open the `lumberjack_net.py` and modify the parameters in the main() function.
+To start training your network you can must open the `main.py` and modify the parameters in the main() function.
 
 When you are ready to run, you can execute:
 
-`python lumberjack_net.py`
+`python main.py`
 
 The results of your training and validation will be found in the folder `expXX` under the folder `logs`.
 

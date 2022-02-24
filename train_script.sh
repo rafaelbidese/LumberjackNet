@@ -1,5 +1,4 @@
 #!/bin/bash
-
 declare -a lr_arr=(0.00001 0.000001 0.0000001)
 declare -a btc_arr=(16 32 64)
 declare -a cha_arr=(8 16 32 64 128)
@@ -22,7 +21,7 @@ for lr in "${lr_arr[@]}"; do
               for k in "${ker_arr[@]}";do
                 for mf in "${mf_arr[@]}";do
                 ((i++))
-                python lumberjack_net.py          \
+                python main.py          \
                               --n_epoch 600         \
                               --lr "$lr"            \
                               --batch_size "$btc"   \

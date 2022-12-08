@@ -1,7 +1,7 @@
 asn1crypto==0.24.0
 astroid==2.3.3
 audioread==2.1.8
-certifi==2019.11.28
+certifi==2022.12.7
 cffi==1.12.3
 chardet==3.0.4
 colorama==0.4.3
